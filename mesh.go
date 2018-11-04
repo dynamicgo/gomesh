@@ -18,10 +18,19 @@ var (
 	ErrAgent = errors.New("agent implement not found")
 )
 
+// GrpcHandle .
+type GrpcHandle func(server *grpc.Server) error
+
 // GrpcService .
 type GrpcService interface {
 	injector.Service
-	GrpcServiceAccept(server *grpc.Server) error
+	GrpcName() string
+	GrpcHandle(server *grpc.Server) error
+}
+
+// GrpcServiceWithOption .
+type GrpcServiceWithOption interface {
+	GrpcServerOption() []grpc.ServerOption
 }
 
 // LookupF .
@@ -29,8 +38,9 @@ type LookupF func(*grpc.ClientConn) (injector.Service, error)
 
 // Agent service mesh inprocess agent
 type Agent interface {
+	Startup(config config.Config) error
 	Connect(serviceName string, options ...grpc.DialOption) (*grpc.ClientConn, error)
-	Accept(serviceName string, options ...grpc.ServerOption) (*grpc.Server, error)
+	ListenAndServe(serviceName string, handle GrpcHandle, options ...grpc.ServerOption) error
 }
 
 // RegisterAgent .
@@ -69,7 +79,7 @@ func Lookup(serviceName string, F LookupF, options ...grpc.DialOption) {
 }
 
 // Startup .
-func Startup() error {
+func Startup(config config.Config) error {
 	var agent Agent
 	if !injector.Get("mesh.agent", &agent) {
 		return xerrors.Wrapf(ErrAgent, "call RegisterAgent first")
