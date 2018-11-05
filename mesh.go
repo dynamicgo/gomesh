@@ -5,6 +5,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/dynamicgo/xerrors"
+
 	config "github.com/dynamicgo/go-config"
 	"github.com/dynamicgo/injector"
 
@@ -63,4 +65,19 @@ func LocalService(name string, F F) {
 // RemoteService register remote service
 func RemoteService(name string, F RemoteF) {
 	getServiceRegister().RemoteService(name, F)
+}
+
+// Start start gomesh
+func Start(config config.Config) error {
+	var agent Agent
+
+	if !injector.Get("mesh.agent", &agent) {
+		return xerrors.Wrapf(ErrAgent, "must import mesh.agent implement package")
+	}
+
+	if err := agent.Start(config); err != nil {
+		return err
+	}
+
+	return getServiceRegister().Start(agent)
 }

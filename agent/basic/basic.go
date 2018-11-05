@@ -34,7 +34,13 @@ func (agent *agentImpl) Start(config config.Config) error {
 }
 
 func (agent *agentImpl) Config(name string) (config.Config, error) {
-	return extend.SubConfig(agent.config, "gomesh", "service", name)
+	config, err := extend.SubConfig(agent.config, "gomesh", "service", name)
+
+	if err != nil {
+		return nil, xerrors.Wrapf(err, "get config gomesh.service.%s error", name)
+	}
+
+	return config, nil
 }
 
 func (agent *agentImpl) Listen(name string) (net.Listener, error) {
@@ -57,7 +63,22 @@ func (agent *agentImpl) Listen(name string) (net.Listener, error) {
 }
 
 func (agent *agentImpl) Connect(name string, options ...grpc.DialOption) (*grpc.ClientConn, error) {
-	return nil, nil
+
+	config, err := agent.Config(name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	remote := config.Get("remote").String("localhost:2018")
+
+	conn, err := grpc.Dial(remote, options...)
+
+	if err != nil {
+		return nil, xerrors.Wrapf(err, "connect to rpc server %s with url %s error", name, remote)
+	}
+
+	return conn, nil
 }
 
 func init() {
