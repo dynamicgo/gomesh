@@ -5,13 +5,14 @@ import (
 
 	"google.golang.org/grpc"
 
+	config "github.com/dynamicgo/go-config"
 	"github.com/dynamicgo/injector"
 	"github.com/dynamicgo/slf4go"
 	"github.com/dynamicgo/xerrors"
 )
 
 // F service factory
-type F func() (Service, error)
+type F func(config config.Config) (Service, error)
 
 // RemoteF .
 type RemoteF func(conn *grpc.ClientConn) (Service, error)
@@ -139,7 +140,14 @@ func (register *serviceRegister) Start(agent Agent) error {
 	// create services
 	for _, f := range register.factories {
 		register.InfoF("create service %s", f.Name)
-		service, err := f.F()
+
+		subconfig, err := agent.Config(f.Name)
+
+		if err != nil {
+			return xerrors.Wrapf(err, "load service %s config err", f.Name)
+		}
+
+		service, err := f.F(subconfig)
 
 		if err != nil {
 			return xerrors.Wrapf(err, "create service %s error", f.Name)
@@ -185,15 +193,7 @@ func (register *serviceRegister) startRunnableServices(agent Agent, runnableName
 
 	for i, runnable := range runnables {
 
-		register.InfoF("start service %s", register.runnableNames[i])
-
-		subconfig, err := agent.Config(runnableNames[i])
-
-		if err != nil {
-			return xerrors.Wrapf(err, "load service %s config err", runnableNames[i])
-		}
-
-		if err := runnable.Start(subconfig); err != nil {
+		if err := runnable.Start(); err != nil {
 			return xerrors.Wrapf(err, "start service %s error", runnableNames[i])
 		}
 	}

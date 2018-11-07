@@ -24,7 +24,7 @@ type Service interface {
 
 // RunnableService .
 type RunnableService interface {
-	Start(config config.Config) error
+	Start() error
 }
 
 // GrpcService export service to vist by grpc protocol

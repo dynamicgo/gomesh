@@ -31,7 +31,7 @@ func Run(appname string) {
 
 	logger.InfoF("start app %s", appname)
 
-	configpath := flag.String("config", "", "special the mesh app config file")
+	configpath := flag.String("config", fmt.Sprintf("./%s.json", appname), "special the mesh app config file")
 
 	flag.Parse()
 
@@ -55,7 +55,7 @@ func Run(appname string) {
 	}
 
 	if err := gomesh.Start(config); err != nil {
-		logger.Info("start gomesh error: %s", err)
+		logger.InfoF("start gomesh error: \n%s", err)
 		return
 	}
 
