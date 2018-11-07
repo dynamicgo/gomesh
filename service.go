@@ -11,10 +11,10 @@ import (
 )
 
 // F service factory
-type F func() Service
+type F func() (Service, error)
 
 // RemoteF .
-type RemoteF func(conn *grpc.ClientConn) Service
+type RemoteF func(conn *grpc.ClientConn) (Service, error)
 
 // Register .
 type Register interface {
@@ -106,7 +106,11 @@ func (register *serviceRegister) bindRemoteServices(agent Agent) error {
 			return xerrors.Wrapf(err, "create remote service %s connect error", sf.Name)
 		}
 
-		service := sf.F(conn)
+		service, err := sf.F(conn)
+
+		if err != nil {
+			return xerrors.Wrapf(err, "create remote service %s proxy error", sf.Name)
+		}
 
 		register.context.Register(sf.Name, service)
 	}
@@ -135,7 +139,12 @@ func (register *serviceRegister) Start(agent Agent) error {
 	// create services
 	for _, f := range register.factories {
 		register.InfoF("create service %s", f.Name)
-		service := f.F()
+		service, err := f.F()
+
+		if err != nil {
+			return xerrors.Wrapf(err, "create service %s error", f.Name)
+		}
+
 		services = append(services, service)
 		register.context.Register(f.Name, service)
 
