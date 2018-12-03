@@ -242,7 +242,7 @@ func (register *serviceRegister) UnaryServerInterceptor(
 	resp, err := handler(ctx, req)
 
 	if err != nil {
-		register.ErrorF("call %s err %s", info, err)
+		register.ErrorF("call %s err %s", info.FullMethod, err)
 		err = apierr.AsGrpcError(apierr.As(err, apierr.New(-1, "UNKNOWN")))
 
 	}
