@@ -1,7 +1,10 @@
 package gomesh
 
 import (
+	"context"
 	"sync"
+
+	"github.com/dynamicgo/xerrors/apierr"
 
 	"google.golang.org/grpc"
 
@@ -213,7 +216,7 @@ func (register *serviceRegister) startGrpcServices(agent Agent, grpcServiceNames
 
 	var server *grpc.Server
 
-	server = grpc.NewServer()
+	server = grpc.NewServer(grpc.UnaryInterceptor(register.UnaryServerInterceptor))
 
 	for i, grpcService := range grpcServices {
 
@@ -231,4 +234,14 @@ func (register *serviceRegister) startGrpcServices(agent Agent, grpcServiceNames
 	}()
 
 	return nil
+}
+
+func (register *serviceRegister) UnaryServerInterceptor(
+	ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
+	resp, err := handler(ctx, req)
+
+	err = apierr.AsGrpcError(apierr.As(err, apierr.New(0, "UNKNOWN")))
+
+	return resp, err
 }
