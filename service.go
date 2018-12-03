@@ -205,32 +205,30 @@ func (register *serviceRegister) startGrpcServices(agent Agent, grpcServiceNames
 	register.grpcServers = nil
 	register.grpcServerNames = grpcServiceNames
 
+	listener, err := agent.Listen()
+
+	if err != nil {
+		return xerrors.Wrapf(err, "create grpc service listener error")
+	}
+
+	var server *grpc.Server
+
+	server = grpc.NewServer()
+
 	for i, grpcService := range grpcServices {
-
-		listener, err := agent.Listen(grpcServiceNames[i])
-
-		if err != nil {
-			return xerrors.Wrapf(err, "create grpc service listener error")
-		}
-
-		var server *grpc.Server
-
-		server = grpc.NewServer()
 
 		if err := grpcService.GrpcHandle(server); err != nil {
 			return xerrors.Wrapf(err, "call grpc service %s handle error", grpcServiceNames[i])
 		}
 
-		name := grpcServiceNames[i]
-
-		go func() {
-			if err := server.Serve(listener); err != nil {
-				register.ErrorF("call grpc service %s server.serve error", name)
-			}
-		}()
-
 		register.grpcServers = append(register.grpcServers, server)
 	}
+
+	go func() {
+		if err := server.Serve(listener); err != nil {
+			register.ErrorF("grpc serve err %s", err)
+		}
+	}()
 
 	return nil
 }

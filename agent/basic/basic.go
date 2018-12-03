@@ -43,20 +43,14 @@ func (agent *agentImpl) Config(name string) (config.Config, error) {
 	return config, nil
 }
 
-func (agent *agentImpl) Listen(name string) (net.Listener, error) {
+func (agent *agentImpl) Listen() (net.Listener, error) {
 
-	config, err := agent.Config(name)
-
-	if err != nil {
-		return nil, err
-	}
-
-	laddr := config.Get("laddr").String(":2018")
+	laddr := agent.config.Get("gomesh", "grpc", "laddr").String(":2018")
 
 	listener, err := net.Listen("tcp", laddr)
 
 	if err != nil {
-		return nil, xerrors.Wrapf(err, "service %s create listener %s err", name, laddr)
+		return nil, xerrors.Wrapf(err, "create grpc listener %s error", laddr)
 	}
 
 	return listener, nil

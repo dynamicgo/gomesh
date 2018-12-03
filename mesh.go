@@ -37,7 +37,7 @@ type GrpcService interface {
 type Agent interface {
 	Start(config config.Config) error
 	Config(name string) (config.Config, error)
-	Listen(name string) (net.Listener, error)
+	Listen() (net.Listener, error)
 	Connect(name string, options ...grpc.DialOption) (*grpc.ClientConn, error)
 }
 
