@@ -221,9 +221,13 @@ func (register *serviceRegister) startGrpcServices(agent Agent, grpcServiceNames
 			return xerrors.Wrapf(err, "call grpc service %s handle error", grpcServiceNames[i])
 		}
 
-		if err := server.Serve(listener); err != nil {
-			return xerrors.Wrapf(err, "call grpc service %s server.serve error", grpcServiceNames[i])
-		}
+		name := grpcServiceNames[i]
+
+		go func() {
+			if err := server.Serve(listener); err != nil {
+				register.ErrorF("call grpc service %s server.serve error", name)
+			}
+		}()
 
 		register.grpcServers = append(register.grpcServers, server)
 	}
