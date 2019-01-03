@@ -102,6 +102,8 @@ func (register *serviceRegister) RemoteService(name string, F RemoteF) {
 
 func (register *serviceRegister) bindRemoteServices(agent Agent) error {
 
+	register.DebugF("register remote serivce ...")
+
 	for _, sf := range register.remoteServices {
 		register.InfoF("register remote service %s", sf.Name)
 		conn, err := agent.Connect(sf.Name)
@@ -118,6 +120,8 @@ func (register *serviceRegister) bindRemoteServices(agent Agent) error {
 
 		register.context.Register(sf.Name, service)
 	}
+
+	register.DebugF("register remote serivce -- success")
 
 	return nil
 }
