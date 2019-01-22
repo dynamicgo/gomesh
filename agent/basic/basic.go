@@ -6,7 +6,7 @@ import (
 
 	"github.com/dynamicgo/xerrors"
 
-	"github.com/dynamicgo/go-config-extend"
+	extend "github.com/dynamicgo/go-config-extend"
 
 	"github.com/dynamicgo/slf4go"
 
@@ -66,7 +66,7 @@ func (agent *agentImpl) Connect(name string, options ...grpc.DialOption) (*grpc.
 
 	remote := config.Get("remote").String("localhost:2018")
 
-	conn, err := grpc.Dial(remote, options...)
+	conn, err := grpc.Dial(remote, grpc.WithInsecure())
 
 	if err != nil {
 		return nil, xerrors.Wrapf(err, "connect to rpc server %s with url %s error", name, remote)
