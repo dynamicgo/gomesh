@@ -70,8 +70,8 @@ func RegisterAgent(agent Agent) {
 }
 
 // RegisterTccResourceManager .
-func RegisterTccResourceManager(agent Agent) {
-	injector.Register("mesh.tcc_resource_manager", agent)
+func RegisterTccResourceManager(rcManager TccResourceManager) {
+	injector.Register("mesh.tcc_resource_manager", rcManager)
 }
 
 var globalRegister Register
@@ -108,11 +108,23 @@ func Start(config config.Config) error {
 		return err
 	}
 
-	if injector.Get("mesh.tcc_resource_manager", &agent) {
+	if injector.Get("mesh.tcc_resource_manager", &rcManager) {
 		if err := rcManager.Start(config); err != nil {
 			return err
 		}
 	}
 
 	return getServiceRegister().Start(agent, rcManager)
+}
+
+// GetTccResourceManager .
+func GetTccResourceManager() TccResourceManager {
+	var rcManager TccResourceManager
+
+	if injector.Get("mesh.tcc_resource_manager", &rcManager) {
+		err := xerrors.Wrapf(ErrAgent, "must import mesh.tcc_resource_manager implement package")
+		panic(err)
+	}
+
+	return rcManager
 }
