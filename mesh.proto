@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package gomesh;
+
+option go_package = "github.com/dynamicgo/gomesh";
+
+message NewTxRequest {
+  string parent_txid = 1; // parent txid
+}
+
+message NewTxResponse { string txid = 1; }
+
+message RollbackRequest { string txid = 1; }
+
+message CommitRequest { string txid = 1; }
+
+message RollbackResponse {}
+message CommitResponse {}
+
+message ResourceLockedRequest {
+  string txid = 1;
+  string resource_manager = 2;
+  string resource = 3;
+  bool prepare = 4; // prepare status
+}
+
+message ResourceLockedRespose {}
+
+message ResourceManagerRequest { string resource_manager = 1; }
+
+message ResourceManagerCommand {
+  bool confirm_or_cancel = 1;
+  string txid = 2;
+  string resource = 3;
+}
+
+// The try/confirm/cancel manager service
+service TccService {
+  rpc NewTx(NewTxRequest) returns (NewTxResponse);
+  rpc Rollback(RollbackRequest) returns (RollbackResponse);
+  rpc Commit(CommitRequest) returns (CommitResponse);
+  rpc ResourceLocked(ResourceLockedRequest) returns (ResourceLockedRespose);
+  rpc ResourceManager(ResourceManagerRequest)
+      returns (stream ResourceManagerCommand);
+}
