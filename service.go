@@ -24,7 +24,7 @@ type RemoteF func(conn *grpc.ClientConn) (Service, error)
 type Register interface {
 	LocalService(name string, F F)
 	RemoteService(name string, F RemoteF)
-	Start(agent Agent, rcManager TccResourceManager) error
+	Start(agent Agent, tccServer TccServer) error
 }
 
 type serviceF struct {
@@ -37,23 +37,17 @@ type remoteServiceF struct {
 	Name string
 }
 
-type tccResource struct {
-	RequireMethod string
-	Commit        TccResourceCommitF
-	Cancel        TccResourceCancelF
-}
-
 type serviceRegister struct {
-	sync.RWMutex                       // mixin mutex
-	slf4go.Logger                      // mixin logger
-	factories       []*serviceF        // service factories
-	remoteServices  []*remoteServiceF  // remote services
-	context         injector.Injector  // inject context
-	grpcServers     []*grpc.Server     // grpc server
-	grpcServerNames []string           // grpc server names
-	runnables       []RunnableService  // runnable services
-	runnableNames   []string           // runnable service names
-	rcManager       TccResourceManager // tcc resource manager
+	sync.RWMutex                      // mixin mutex
+	slf4go.Logger                     // mixin logger
+	factories       []*serviceF       // service factories
+	remoteServices  []*remoteServiceF // remote services
+	context         injector.Injector // inject context
+	grpcServers     []*grpc.Server    // grpc server
+	grpcServerNames []string          // grpc server names
+	runnables       []RunnableService // runnable services
+	runnableNames   []string          // runnable service names
+	tccServer       TccServer         // tcc resource manager
 
 }
 
@@ -134,9 +128,9 @@ func (register *serviceRegister) bindRemoteServices(agent Agent) error {
 	return nil
 }
 
-func (register *serviceRegister) Start(agent Agent, rcManager TccResourceManager) error {
+func (register *serviceRegister) Start(agent Agent, tccServer TccServer) error {
 
-	register.rcManager = rcManager
+	register.tccServer = tccServer
 
 	register.RLock()
 	defer register.RUnlock()
@@ -155,8 +149,8 @@ func (register *serviceRegister) Start(agent Agent, rcManager TccResourceManager
 	var grpcServices []GrpcService
 	var grpcServiceNames []string
 
-	var tccResourceServices []TccResourceService
-	var tccResourceServiceNames []string
+	var tccServices []TccService
+	var tccServiceNames []string
 
 	// create services
 	for _, f := range register.factories {
@@ -189,15 +183,15 @@ func (register *serviceRegister) Start(agent Agent, rcManager TccResourceManager
 			grpcServiceNames = append(grpcServiceNames, f.Name)
 		}
 
-		if tccResourceService, ok := service.(TccResourceService); ok {
-			tccResourceServices = append(tccResourceServices, tccResourceService)
-			tccResourceServiceNames = append(tccResourceServiceNames, f.Name)
+		if tccResourceService, ok := service.(TccService); ok {
+			tccServices = append(tccServices, tccResourceService)
+			tccServiceNames = append(tccServiceNames, f.Name)
 		}
 
 	}
 
-	if len(tccResourceServices) > 0 && rcManager == nil {
-		return xerrors.New("tcc resource required import mesh.tcc_resource_manager implement package")
+	if len(tccServices) > 0 && tccServer == nil {
+		return xerrors.New("tcc resource required import mesh.tccServer implement package")
 	}
 
 	for i, service := range services {
@@ -206,8 +200,8 @@ func (register *serviceRegister) Start(agent Agent, rcManager TccResourceManager
 		}
 	}
 
-	for i := 0; i < len(tccResourceServices); i++ {
-		tccResourceServices[i].TccResourceHandle(rcManager)
+	for i := 0; i < len(tccServices); i++ {
+		tccServices[i].TccHandle(tccServer)
 	}
 
 	if err := register.startRunnableServices(agent, runnableNames, runnables); err != nil {
@@ -270,8 +264,8 @@ func (register *serviceRegister) startGrpcServices(agent Agent, grpcServiceNames
 func (register *serviceRegister) UnaryServerInterceptor(
 	ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 
-	if register.rcManager != nil {
-		err := register.rcManager.BeforeLock(ctx, info.FullMethod)
+	if register.tccServer != nil {
+		err := register.tccServer.BeforeRequire(ctx, info.FullMethod)
 
 		if err != nil {
 			register.ErrorF("tcc resource %s before lock err %s", info.FullMethod, err)
@@ -287,8 +281,8 @@ func (register *serviceRegister) UnaryServerInterceptor(
 		err = apierr.AsGrpcError(apierr.As(err, apierr.New(-1, "UNKNOWN")))
 	}
 
-	if register.rcManager != nil {
-		err := register.rcManager.AfterLock(ctx, info.FullMethod)
+	if register.tccServer != nil {
+		err := register.tccServer.AfterRequire(ctx, info.FullMethod)
 
 		if err != nil {
 			register.ErrorF("tcc resource %s after lock err %s", info.FullMethod, err)

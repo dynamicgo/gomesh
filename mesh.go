@@ -1,7 +1,7 @@
 package gomesh
 
 import (
-	context "context"
+	"context"
 	"errors"
 	"net"
 	"sync"
@@ -36,25 +36,29 @@ type GrpcService interface {
 	GrpcHandle(server *grpc.Server) error
 }
 
-// TccResourceService .
-type TccResourceService interface {
+// TccService .
+type TccService interface {
 	GrpcService
-	TccResourceHandle(TccResourceManager)
+	TccHandle(server TccServer) error
 }
 
-// TccResourceManager .
-type TccResourceManager interface {
+// TccResource .
+type TccResource struct {
+	GrpcRequireFullMethod string
+	Commit                func(txid string) error
+	Cancel                func(txid string) error
+}
+
+// TccServer .
+type TccServer interface {
 	Start(config config.Config) error
-	BeforeLock(ctx context.Context, requireMethodName string) error
-	AfterLock(ctx context.Context, requireMethodName string) error
-	Register(requireMethodName string, commit TccResourceCommitF, cancel TccResourceCancelF)
+	Register(tccResource TccResource) error
+	NewTx(parentTxid string) (string, error)
+	Commit(txid string) error
+	Cancel(txid string) error
+	BeforeRequire(ctx context.Context, GrpcRequireFullMethod string) error
+	AfterRequire(ctx context.Context, GrpcRequireFullMethod string) error
 }
-
-// TccResourceCommitF .
-type TccResourceCommitF func(txid string) error
-
-// TccResourceCancelF .
-type TccResourceCancelF func(txid string) error
 
 // Agent .
 type Agent interface {
@@ -69,9 +73,9 @@ func RegisterAgent(agent Agent) {
 	injector.Register("mesh.agent", agent)
 }
 
-// RegisterTccResourceManager .
-func RegisterTccResourceManager(rcManager TccResourceManager) {
-	injector.Register("mesh.tcc_resource_manager", rcManager)
+// RegisterTccServer .
+func RegisterTccServer(server TccServer) {
+	injector.Register("mesh.tccServer", server)
 }
 
 var globalRegister Register
@@ -98,7 +102,7 @@ func RemoteService(name string, F RemoteF) {
 // Start start gomesh
 func Start(config config.Config) error {
 	var agent Agent
-	var rcManager TccResourceManager
+	var tccServer TccServer
 
 	if !injector.Get("mesh.agent", &agent) {
 		return xerrors.Wrapf(ErrAgent, "must import mesh.agent implement package")
@@ -108,23 +112,23 @@ func Start(config config.Config) error {
 		return err
 	}
 
-	if injector.Get("mesh.tcc_resource_manager", &rcManager) {
-		if err := rcManager.Start(config); err != nil {
+	if injector.Get("mesh.tccServer", &tccServer) {
+		if err := tccServer.Start(config); err != nil {
 			return err
 		}
 	}
 
-	return getServiceRegister().Start(agent, rcManager)
+	return getServiceRegister().Start(agent, tccServer)
 }
 
-// GetTccResourceManager .
-func GetTccResourceManager() TccResourceManager {
-	var rcManager TccResourceManager
+// GetTccServer .
+func GetTccServer() TccServer {
+	var tccServer TccServer
 
-	if injector.Get("mesh.tcc_resource_manager", &rcManager) {
+	if injector.Get("mesh.tccServer", &tccServer) {
 		err := xerrors.Wrapf(ErrAgent, "must import mesh.tcc_resource_manager implement package")
 		panic(err)
 	}
 
-	return rcManager
+	return tccServer
 }
